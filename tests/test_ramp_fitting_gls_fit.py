@@ -4,12 +4,13 @@ import pytest
 from stcal.ramp_fitting.ramp_fit import ramp_fit_class, ramp_fit_data
 
 test_dq_flags = {
-    "GOOD": 0,
-    "DO_NOT_USE": 1,
-    "SATURATED": 2,
-    "JUMP_DET": 4,
-    "NO_GAIN_VALUE": 8,
-    "UNRELIABLE_SLOPE": 16,
+    "GOOD": 0,  # Good pixel.
+    "DO_NOT_USE": 2**0,  # Bad pixel. Do not use.
+    "SATURATED": 2**1,  # Pixel saturated during exposure.
+    "JUMP_DET": 2**2,  # Jump detected during exposure.
+    "CHARGELOSS": 2**7,   # Charge migration (was RESERVED_4)
+    "NO_GAIN_VALUE": 2**19,  # Gain cannot be measured.
+    "UNRELIABLE_SLOPE": 2**24,  # Slope variance large (i.e., noisy pixel).
 }
 
 GOOD = test_dq_flags["GOOD"]
@@ -18,6 +19,7 @@ JUMP_DET = test_dq_flags["JUMP_DET"]
 SATURATED = test_dq_flags["SATURATED"]
 NO_GAIN_VALUE = test_dq_flags["NO_GAIN_VALUE"]
 UNRELIABLE_SLOPE = test_dq_flags["UNRELIABLE_SLOPE"]
+CHRGL = test_dq_flags["CHARGELOSS"]
 
 DELIM = "-" * 70
 
@@ -63,9 +65,11 @@ def setup_inputs(dims, gain, rnoise, group_time, frame_time):
     err = np.ones(shape=(nints, ngroups, nrows, ncols), dtype=np.float32)
     groupdq = np.zeros(shape=(nints, ngroups, nrows, ncols), dtype=np.uint8)
     pixeldq = np.zeros(shape=(nrows, ncols), dtype=np.uint32)
+    dark_current = np.zeros(shape=(nrows, ncols), dtype=np.float32)
+
 
     # Set clas arrays
-    ramp_class.set_arrays(data, err, groupdq, pixeldq)
+    ramp_class.set_arrays(data, err, groupdq, pixeldq, average_dark_current=dark_current)
 
     # Set class meta
     ramp_class.set_meta(

@@ -1,6 +1,7 @@
 import inspect
 from pathlib import Path
 
+import pytest
 import numpy as np
 import numpy.testing as npt
 
@@ -31,6 +32,7 @@ dqflags = {
     "DO_NOT_USE": 2**0,  # Bad pixel. Do not use.
     "SATURATED": 2**1,  # Pixel saturated during exposure.
     "JUMP_DET": 2**2,  # Jump detected during exposure.
+    "CHARGELOSS": 2**7,   # Charge migration (was RESERVED_4)
     "NO_GAIN_VALUE": 2**19,  # Gain cannot be measured.
     "UNRELIABLE_SLOPE": 2**24,  # Slope variance large (i.e., noisy pixel).
 }
@@ -39,8 +41,13 @@ GOOD = dqflags["GOOD"]
 DNU = dqflags["DO_NOT_USE"]
 SAT = dqflags["SATURATED"]
 JUMP = dqflags["JUMP_DET"]
+CHRGL = dqflags["CHARGELOSS"]
+
+DEFAULT_OLS = "OLS_C"
 
 
+# -----------------------------------------------------------------------------
+#                           Test Suite
 def test_pix_0():
     """
     CASE A: segment has >2 groups, at end of ramp.
@@ -58,7 +65,7 @@ def test_pix_0():
     dq = [GOOD] * ngroups
     ramp_data.groupdq[0, :, 0, 0] = np.array(dq)
 
-    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, "OLS"
+    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, DEFAULT_OLS
     slopes, cube, ols_opt, gls_opt = ramp_fit_data(
         ramp_data, bufsize, save_opt, rnoise, gain, algo, "optimal", ncores, dqflags
     )
@@ -99,7 +106,7 @@ def test_pix_1():
     dq[4:] = [SAT] * (ngroups - 4)
     ramp_data.groupdq[0, :, 0, 0] = np.array(dq)
 
-    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, "OLS"
+    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, DEFAULT_OLS
     slopes, cube, ols_opt, gls_opt = ramp_fit_data(
         ramp_data, bufsize, save_opt, rnoise, gain, algo, "optimal", ncores, dqflags
     )
@@ -132,7 +139,7 @@ def test_pix_2():
     dq = [GOOD, GOOD, GOOD, JUMP, GOOD, JUMP, GOOD, JUMP, SAT, SAT]
     ramp_data.groupdq[0, :, 0, 0] = np.array(dq)
 
-    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, "OLS"
+    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, DEFAULT_OLS
     slopes, cube, ols_opt, gls_opt = ramp_fit_data(
         ramp_data, bufsize, save_opt, rnoise, gain, algo, "optimal", ncores, dqflags
     )
@@ -175,7 +182,7 @@ def test_pix_3():
     dq[-2] = JUMP
     ramp_data.groupdq[0, :, 0, 0] = np.array(dq)
 
-    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, "OLS"
+    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, DEFAULT_OLS
     slopes, cube, ols_opt, gls_opt = ramp_fit_data(
         ramp_data, bufsize, save_opt, rnoise, gain, algo, "optimal", ncores, dqflags
     )
@@ -217,7 +224,7 @@ def test_pix_4():
     dq = [GOOD] + [SAT] * (ngroups - 1)
     ramp_data.groupdq[0, :, 0, 0] = np.array(dq)
 
-    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, "OLS"
+    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, DEFAULT_OLS
     slopes, cube, ols_opt, gls_opt = ramp_fit_data(
         ramp_data, bufsize, save_opt, rnoise, gain, algo, "optimal", ncores, dqflags
     )
@@ -236,6 +243,7 @@ def test_pix_4():
     NOTE:
         There are small differences in the slope computation due to architectural
         differences of C and python.
+        Switching to doubles from floats in the C code fixed this problem.
 
 --------------------------------------------------------------------------------
 *** [2627] Segment 2, Integration 0 ***
@@ -279,7 +287,6 @@ Debug - [slope_fitter.c:2633] seg->slope = 1.014447927475
 """
 
 
-# @pytest.mark.skip(reason="C architecture gives small differences for slope.")
 def test_pix_5():
     """
     CASE B: segment has >2 groups, not at end of ramp.
@@ -300,22 +307,17 @@ def test_pix_5():
     dq[4] = JUMP
     ramp_data.groupdq[0, :, 0, 0] = np.array(dq)
 
-    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, "OLS"
+    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, DEFAULT_OLS
     slopes, cube, ols_opt, gls_opt = ramp_fit_data(
         ramp_data, bufsize, save_opt, rnoise, gain, algo, "optimal", ncores, dqflags
     )
 
-    # XXX see the note above for the differences in C and python testing values.
     # Set truth values for PRIMARY results:
-    p_true_p = [1.076075, JUMP, 0.16134359, 0.00227273, 0.02375903]
-    # p_true_c = [1.076122522354126, JUMP, 0.16134359, 0.00227273, 0.02375903]  # To be used with C
-    p_true = p_true_p
+    p_true = [1.076075, JUMP, 0.16134359, 0.00227273, 0.02375903]
 
     # Set truth values for OPTIONAL results:
-    oslope_p = [1.2799551, 1.0144024]
-    # oslope_c = [1.2799551, 1.0144479]  # To be used with C
     o_true = [
-        oslope_p,
+        [1.2799551, 1.0144024],
         [18.312422, 9.920552],
         [0.00606061, 0.00363636],
         [0.10691562, 0.03054732],
@@ -349,7 +351,7 @@ def test_pix_6():
     dq[3] = JUMP
     ramp_data.groupdq[0, :, 0, 0] = np.array(dq)
 
-    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, "OLS"
+    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, DEFAULT_OLS
     slopes, cube, ols_opt, gls_opt = ramp_fit_data(
         ramp_data, bufsize, save_opt, rnoise, gain, algo, "optimal", ncores, dqflags
     )
@@ -390,7 +392,7 @@ def test_pix_7():
     dq = [GOOD] * (ngroups - 2) + [JUMP, JUMP]
     ramp_data.groupdq[0, :, 0, 0] = np.array(dq)
 
-    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, "OLS"
+    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, DEFAULT_OLS
     slopes, cube, ols_opt, gls_opt = ramp_fit_data(
         ramp_data, bufsize, save_opt, rnoise, gain, algo, "optimal", ncores, dqflags
     )
@@ -423,7 +425,7 @@ def test_pix_8():
     dq = [GOOD, JUMP, GOOD, GOOD, GOOD, GOOD, GOOD, SAT, SAT, SAT]
     ramp_data.groupdq[0, :, 0, 0] = np.array(dq)
 
-    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, "OLS"
+    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, DEFAULT_OLS
     slopes, cube, ols_opt, gls_opt = ramp_fit_data(
         ramp_data, bufsize, save_opt, rnoise, gain, algo, "optimal", ncores, dqflags
     )
@@ -457,7 +459,7 @@ def test_pix_9():
     dq = [GOOD, GOOD, JUMP, JUMP, GOOD, GOOD, GOOD, GOOD, JUMP, GOOD]
     ramp_data.groupdq[0, :, 0, 0] = np.array(dq)
 
-    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, "OLS"
+    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, DEFAULT_OLS
     slopes, cube, ols_opt, gls_opt = ramp_fit_data(
         ramp_data, bufsize, save_opt, rnoise, gain, algo, "optimal", ncores, dqflags
     )
@@ -500,7 +502,7 @@ def test_pix_10():
     dq = [GOOD, GOOD, JUMP, GOOD, GOOD, JUMP, GOOD, GOOD, GOOD, GOOD]
     ramp_data.groupdq[0, :, 0, 0] = np.array(dq)
 
-    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, "OLS"
+    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, DEFAULT_OLS
     slopes, cube, ols_opt, gls_opt = ramp_fit_data(
         ramp_data, bufsize, save_opt, rnoise, gain, algo, "optimal", ncores, dqflags
     )
@@ -541,7 +543,7 @@ def test_pix_11():
     dq = [GOOD, GOOD] + [SAT] * (ngroups - 2)
     ramp_data.groupdq[0, :, 0, 0] = np.array(dq)
 
-    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, "OLS"
+    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, DEFAULT_OLS
     slopes, cube, ols_opt, gls_opt = ramp_fit_data(
         ramp_data, bufsize, save_opt, rnoise, gain, algo, "optimal", ncores, dqflags
     )
@@ -577,7 +579,7 @@ def test_pix_12():
     ramp_data.data[0, :, 0, 1] = np.array([61000.0, 61000.0], dtype=np.float32)
     ramp_data.groupdq[0, :, 0, 1] = np.array([SAT, SAT])
 
-    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, "OLS"
+    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, DEFAULT_OLS
     slopes, cube, ols_opt, gls_opt = ramp_fit_data(
         ramp_data, bufsize, save_opt, rnoise, gain, algo, "optimal", ncores, dqflags
     )
@@ -631,7 +633,7 @@ def test_miri_0():
     dq = [DNU] + [GOOD] * (ngroups - 2) + [DNU]
     ramp_data.groupdq[0, :, 0, 0] = np.array(dq)
 
-    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, "OLS"
+    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, DEFAULT_OLS
     slopes, cube, ols_opt, gls_opt = ramp_fit_data(
         ramp_data, bufsize, save_opt, rnoise, gain, algo, "optimal", ncores, dqflags
     )
@@ -665,7 +667,7 @@ def test_miri_1():
     dq = [DNU | JUMP] + [GOOD] * (ngroups - 2) + [DNU]
     ramp_data.groupdq[0, :, 0, 0] = np.array(dq)
 
-    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, "OLS"
+    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, DEFAULT_OLS
     slopes, cube, ols_opt, gls_opt = ramp_fit_data(
         ramp_data, bufsize, save_opt, rnoise, gain, algo, "optimal", ncores, dqflags
     )
@@ -699,7 +701,7 @@ def test_miri_2():
     dq = [DNU | JUMP] + [GOOD] * (ngroups - 2) + [DNU | JUMP]
     ramp_data.groupdq[0, :, 0, 0] = np.array(dq)
 
-    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, "OLS"
+    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, DEFAULT_OLS
     slopes, cube, ols_opt, gls_opt = ramp_fit_data(
         ramp_data, bufsize, save_opt, rnoise, gain, algo, "optimal", ncores, dqflags
     )
@@ -733,7 +735,7 @@ def test_miri_3():
     dq = [DNU] + [GOOD] * (ngroups - 2) + [DNU | JUMP]
     ramp_data.groupdq[0, :, 0, 0] = np.array(dq)
 
-    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, "OLS"
+    save_opt, ncores, bufsize, algo = True, "none", 1024 * 30000, DEFAULT_OLS
     slopes, cube, ols_opt, gls_opt = ramp_fit_data(
         ramp_data, bufsize, save_opt, rnoise, gain, algo, "optimal", ncores, dqflags
     )
@@ -786,9 +788,10 @@ def create_blank_ramp_data(dims, var, timing, ts_name="NIRSpec"):
     err = np.ones(shape=(nints, ngroups, nrows, ncols), dtype=np.float32)
     pixdq = np.zeros(shape=(nrows, ncols), dtype=np.uint32)
     gdq = np.zeros(shape=(nints, ngroups, nrows, ncols), dtype=np.uint8)
+    dark_current = np.zeros(shape=(nrows, ncols), dtype=np.float32)
 
     ramp_data = RampData()
-    ramp_data.set_arrays(data=data, err=err, groupdq=gdq, pixeldq=pixdq)
+    ramp_data.set_arrays(data=data, err=err, groupdq=gdq, pixeldq=pixdq, average_dark_current=dark_current)
     ramp_data.set_meta(
         name=ts_name,
         frame_time=frame_time,

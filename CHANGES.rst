@@ -1,7 +1,300 @@
-1.5.3 (unreleased)
+1.10.0 (2024-11-15)
+===================
+
+Changes to API
+--------------
+
+- Add `outlier_detection` median calculators from jwst. (`#292
+  <https://github.com/spacetelescope/stcal/issues/292>`_)
+- Deprecate wcs_from_footprints. Use wcs_from_sregions instead. (`#307
+  <https://github.com/spacetelescope/stcal/issues/307>`_)
+- Add wcs_from_sregions function to compute a combined WCS from a list of
+  s_regions. (`#307 <https://github.com/spacetelescope/stcal/issues/307>`_)
+
+
+Bug Fixes
+---------
+
+- Fix `IntEnum` saturation flag issue with numpy 2+ for romancal. (`#305
+  <https://github.com/spacetelescope/stcal/issues/305>`_)
+- Fix abs_deriv handling of off-edge and nan values. (`#311
+  <https://github.com/spacetelescope/stcal/issues/311>`_)
+
+
+General
+-------
+
+- Added fillval option to ``gwcs_blot`` utility. (`#291
+  <https://github.com/spacetelescope/stcal/issues/291>`_)
+- Update downstream tests for jwst and romancal to fix pytest configurations.
+  (`#297 <https://github.com/spacetelescope/stcal/issues/297>`_)
+- Changed the default `ramp fitting` CI test algorithm to ``OLS_C``.  This also
+  revealed
+  a bug in control flow that allowed for the CHARGELOSS recalculation in error,
+  which
+  resulted in a crash while attempting to dereference a ``NULL`` pointer.
+  Further, when
+  creating the optional results product, the object creation was changed to
+  `PyArray_ZEROS`
+  to ensure invalid data was set to zero.  The use of `PyArray_EMPTY` does not
+  initialize
+  memory, so junk data could be in used array elements. (`#298
+  <https://github.com/spacetelescope/stcal/issues/298>`_)
+- Add infrastructure for testing memory usage (`#299
+  <https://github.com/spacetelescope/stcal/issues/299>`_)
+- Preparing ramp fitting for the upgrade to python 3.13.  In python 3.13, the
+  C-API
+  function ``PyLong_AsLong`` raises an exception if the object passed to it is
+  ``NoneType``.  There are two integer attributes for the ``RampData`` class
+  that
+  can be ``NoneType``, so a check for ``NoneType`` for these attributes was
+  added. (`#303 <https://github.com/spacetelescope/stcal/issues/303>`_)
+
+
+1.9.0 (2024-09-19)
 ==================
 
-- 
+Changes to API
+--------------
+
+- [ramp_fitting] Add the likelihood algorithm to ramp fitting. (`#278
+  <https://github.com/spacetelescope/stcal/issues/278>`_)
+
+
+Bug Fixes
+---------
+
+- [saturation] Add option for using the readout pattern information to improve
+  saturation flagging in grouped data. (`#283
+  <https://github.com/spacetelescope/stcal/issues/283>`_)
+
+
+General
+-------
+
+- Add clip_accum parameter to alignment methods. (`#286
+  <https://github.com/spacetelescope/stcal/issues/286>`_)
+- Improve handling of catalog web service connectivity issues. (`#286
+  <https://github.com/spacetelescope/stcal/issues/286>`_)
+
+
+1.8.2 (2024-09-10)
+==================
+
+Bug Fixes
+---------
+
+- Implement byteorder swap method that is forward-compatible with numpy 2.0 in
+  jwst ramp_fitting. (`#282
+  <https://github.com/spacetelescope/stcal/issues/282>`_)
+- [jump] Fix a logical bug in the jump step for usage of > vs >= per JP-3689.
+  (`#285 <https://github.com/spacetelescope/stcal/issues/285>`_)
+
+
+General
+-------
+
+- [ramp_fitting] Moving the read noise recalculation due to CHARGELOSS flagging
+  from
+  the JWST ramp fit step code into the STCAL ramp fit C-extension. (`#275
+  <https://github.com/spacetelescope/stcal/issues/275>`_)
+
+
+1.8.1 (2024-09-08)
+==================
+
+Bug Fixes
+---------
+
+- Fixed memory leak in C-extension. (`#281
+  <https://github.com/spacetelescope/stcal/issues/281>`_)
+
+
+General
+-------
+
+- use ``towncrier`` to handle changelog entries (`#284
+  <https://github.com/spacetelescope/stcal/issues/284>`_)
+
+
+1.8.0 (2024-08-14)
+==================
+
+General
+-------
+
+- Add TweakReg submodule. [#267]
+
+ramp_fitting
+~~~~~~~~~~~~
+
+- Move the CHARGELOSS read noise variance recalculation from the JWST step
+  code to the C extension to simplify the code and improve performance.[#275]
+
+Changes to API
+--------------
+
+- Add ``outlier_detection`` submodule with ``utils`` included
+  from jwst. [#270] 
+
+1.7.3 (2024-07-05)
+==================
+
+Bug Fixes
+---------
+
+ramp_fitting
+~~~~~~~~~~~~
+
+- Fix bugs in the C algorithm Poisson variance calculation when provided with
+  an average dark current. [#269]
+
+- When OLS_C was selected as the ramp fitting algorithm with multiprocessing, the C
+  extension was not called.  The old python code was called.  This bug has been fixed,
+  so the C extension is properly run when selecting multiprocessing. [#268]
+
+1.7.2 (2024-06-12)
+==================
+
+General
+-------
+
+- build with Numpy 2.0 release candidate [#260]
+
+Bug Fixes
+---------
+
+jump
+~~~~
+- Flag asymmetrical snowballs that are missed by the current code (JP-3638). This was changed to
+  not require that the center of the snowball jump ellipse is a saturated
+  pixel. [#261]
+
+1.7.1 (2024-05-21)
+==================
+
+Bug Fixes
+---------
+
+jump
+~~~~
+
+- Catch some additional warnings about all-NaN slices. [#258]
+
+ramp_fitting
+~~~~~~~~~~~~
+
+- Fix a bug in Poisson variance calculation visible when providing an average
+  dark current value in which the specified dark current was not converted to the
+  appropriate units for pixels with negative slopes.  This resulted in
+  incorrect SCI, ERR, and VAR_POISSON values. Also required revising the approach
+  for catching all-zero variance cases when average dark current was not
+  specified. [#255]
+
+- Refactor ramp fitting using a C extension to improve performance. [#156]
+
+1.7.0 (2024-03-25)
+==================
+
+Changes to API
+--------------
+
+jump
+~~~~
+
+- Switch multiprocessing method to ``fork_server``. [#249]
+
+ramp_fitting
+~~~~~~~~~~~~
+
+- Switch multiprocessing method to ``fork_server``. [#249]
+
+Bug Fixes
+---------
+
+jump
+~~~~
+
+- Updated the shower flagging code to mask reference pixels, require a minimum
+  number of groups to trigger the detection, and use all integrations to determine
+  the median value. [#248]
+
+ramp_fitting
+~~~~~~~~~~~~
+
+- Changed the data type of three variables that are used in measuring
+  the jump free segments of integrations. The variables were uint8 and
+  they would yield wrong results for integrations with more than 256
+  groups. [#251]
+
+- Use ``sqrtf`` instead of ``sqrt`` in ols_cas22 ramp fitting with
+  jump detection to avoid small numerical errors on different systems
+  due to a cast to/from double. [#252]
+
+
+Other
+-----
+
+jump
+~~~~
+
+- Enable the use of multiple integrations to find outliers. Also,
+  when the number of groups is above a threshold, use single pass
+  outlier flagging rather than the iterative flagging. [#242]
+
+- Use ``sqrtf`` instead of ``sqrt`` in ols_cas22 ramp fitting with
+  jump detection to avoid small numerical errors on different systems
+  due to a cast to/from double. [#252]
+
+1.6.1 (2024-02-29)
+==================
+
+Changes to API
+--------------
+
+ramp_fitting
+~~~~~~~~~~~~
+
+- Add ``average_dark_current`` to calculations of poisson variance. [#243]
+
+1.6.0 (2024-02-15)
+==================
+
+Changes to API
+--------------
+
+jump
+~~~~
+
+- Add in the flagging of groups in the integration after a snowball
+  occurs. The saturated core of the snowball gets flagged as jump
+  for a number of groups passed in as a parameter [#238]
+
+Bug Fixes
+---------
+
+jump
+~~~~
+
+- Fixed the computation of the number of rows per slice for multiprocessing, which
+  was causing different results when running the step with multiprocess [#239]
+
+- Fix the code to at least always flag the group with the shower and the requested
+  groups after the primary shower. [#237]
+
+Other
+-----
+
+jump
+~~~~
+
+- Reorganize jump docs between the jwst and stcal repos. [#240]
+
+ramp_fitting
+~~~~~~~~~~~~
+
+- Reorganize ramp_fitting docs between the jwst and stcal repos. [#240]
+
 
 1.5.2 (2023-12-13)
 ==================
@@ -24,7 +317,7 @@ Other
 - Enable automatic linting and code style checks [#187]
 
 ramp_fitting
-------------
+~~~~~~~~~~~~
 
 - Refactor Casertano, et.al, 2022 uneven ramp fitting and incorporate the matching
   jump detection algorithm into it. [#215]
@@ -84,13 +377,16 @@ jump
   within a group. [#207]
 
 - Added more allowable selections for the number of cores to use for
-  multiprocessing [#183].
+  multiprocessing [#183]
+
+- Fixed the computation of the number of rows per slice for multiprocessing,
+  which caused different results when running the step with multiprocess [#239]
 
 ramp_fitting
 ~~~~~~~~~~~~
 
 - Added more allowable selections for the number of cores to use for
-  multiprocessing [#183].
+  multiprocessing [#183]
 
 - Updating variance computation for invalid integrations, as well as
   updating the median rate computation by excluding groups marked as
