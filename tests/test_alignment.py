@@ -282,6 +282,17 @@ def test_wcs_bbox_from_shape_3d():
     assert bb == ((-0.5, 49.5), (-0.5, 44.5))
 
 
+def test_wcs_bbox_from_shape_invalid():
+    with pytest.raises(ValueError):
+        wcs_bbox_from_shape((0, 2048))
+
+    with pytest.raises(ValueError):
+        wcs_bbox_from_shape((-5, 2048))
+
+    with pytest.raises(ValueError):
+        wcs_bbox_from_shape((3, 3, 0))
+
+
 @pytest.mark.parametrize(
     ("shape", "pixmap_expected_shape"),
     [
@@ -327,7 +338,6 @@ def test_compute_s_region_keyword(model, footprint, expected_s_region, expected_
     [
         ((100, 200), ((-0.5, 199.5), (-0.5, 99.5))),
         ((1, 1), ((-0.5, 0.5), (-0.5, 0.5))),
-        ((0, 0), ((-0.5, -0.5), (-0.5, -0.5))),
     ],
 )
 def test_wcs_bbox_from_shape(shape, expected_bbox):

@@ -608,6 +608,9 @@ def wcs_bbox_from_shape(shape: Sequence) -> tuple:
     bbox : tuple
         Bounding box in x, y order.
     """
+    if np.any(np.array(shape) < 1):
+        msg = f"Invalid shape {shape} to compute bounding box."
+        raise ValueError(msg)
     return (-0.5, shape[-1] - 0.5), (-0.5, shape[-2] - 0.5)
 
 
