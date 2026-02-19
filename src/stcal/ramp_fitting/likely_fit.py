@@ -127,7 +127,9 @@ def likely_ramp_fit(ramp_data, readnoise_2d, gain_2d, jump_data=None):
             gdq[1:, row, :] |= jump_locs
 
             alldiffs2use[:, row] = d2use
-            allrateguesses[row] = countrates * (countrates > 0) + ramp_data.average_dark_current[row, :]
+            allrateguesses[row] = countrates * (countrates > 0)
+            if getattr(ramp_data, "average_dark_current", None) is not None:
+                allrateguesses[row] += ramp_data.average_dark_current[row, :]
 
         # Run snowball flagging if called for.
         if hasattr(jump_data, "expand_large_events") and jump_data.expand_large_events:

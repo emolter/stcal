@@ -659,7 +659,8 @@ def endianness_handler(ramp_data, gain_2d, readnoise_2d):
     readnoise_2d, rn_bswap = handle_array_endianness(readnoise_2d, sys_order)
 
     ramp_data.data, _ = handle_array_endianness(ramp_data.data, sys_order)
-    ramp_data.average_dark_current, _ = handle_array_endianness(ramp_data.average_dark_current, sys_order)
+    if getattr(ramp_data, "average_dark_current", None) is not None:
+        ramp_data.average_dark_current, _ = handle_array_endianness(ramp_data.average_dark_current, sys_order)
     ramp_data.groupdq, _ = handle_array_endianness(ramp_data.groupdq, sys_order)
     ramp_data.pixeldq, _ = handle_array_endianness(ramp_data.pixeldq, sys_order)
 
